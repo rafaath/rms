@@ -18,7 +18,7 @@ interface OrderItem {
     item: {
         name_of_item: string;
         cost: number;
-    };
+    } | null;
 }
 
 interface Order {
@@ -31,12 +31,12 @@ interface Order {
     tax_amount: number;
     table: {
         table_number: string;
-    };
+    } | null;
     order_items: OrderItem[];
     waiter: {
         first_name: string;
         last_name: string;
-    };
+    } | null;
 }
 
 export default function OrderHistory() {

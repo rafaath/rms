@@ -9,7 +9,8 @@ import {
     Package,
     CreditCard,
     ClipboardSignature,
-    History,  // Add this import
+    History,
+    BarChart,  // Add this import
 } from "lucide-react"
 
 export const SYSTEM_MODULES = {
@@ -121,17 +122,18 @@ export const SYSTEM_MODULES = {
             isCore: true
         }
     },
-    reports: {
-        id: 'reports',
-        label: 'Reports',
-        icon: BarChart3,
+    analytics: {
+        id: 'analytics',
+        label: 'Reports & Analytics',
+        icon: BarChart,
         permissions: {
-            view: 'View Reports',
-            export: 'Export Reports'
+            view: 'View Analytics',
+            export: 'Export Reports',
         },
         navItem: {
-            title: "Reports",
-            value: "reports"
+            title: "Analytics",
+            value: "analytics",
+            isCore: true // Not a core feature, requires permission
         }
     },
     // Just add to SYSTEM_MODULES:

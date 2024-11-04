@@ -16,6 +16,7 @@ import RoleManagement from "../roles/RoleManagement"
 import SessionPayment from "../pos/SessionPayment"
 import InventoryManagement from "@/components/inventory/InventoryManagement"
 import OrderHistory from "./OrderHistory"
+import ReportsAnalytics from "./ReportsAnalytics"
 
 export default function Dashboard() {
     const { setTheme } = useTheme()
@@ -27,6 +28,7 @@ export default function Dashboard() {
         menu: MenuManagement,
         branches: BranchManagement,
         roles: RoleManagement,
+        analytics: ReportsAnalytics,
         inventory: InventoryManagement,
         orderHistory: OrderHistory,
         activeOrders: ActiveOrders,
