@@ -8,7 +8,8 @@ import {
     BarChart3,
     Package,
     CreditCard,
-    ClipboardSignature,  // Add this import
+    ClipboardSignature,
+    History,  // Add this import
 } from "lucide-react"
 
 export const SYSTEM_MODULES = {
@@ -147,6 +148,20 @@ export const SYSTEM_MODULES = {
         navItem: {
             title: "Inventory",
             value: "inventory",
+            isCore: true
+        }
+    },
+    orderHistory: {
+        id: 'orderHistory',
+        label: 'Order History',
+        icon: History,
+        permissions: {
+            view: 'View Order History',
+            export: 'Export Order History',
+        },
+        navItem: {
+            title: "Order History",
+            value: "orderHistory",
             isCore: true
         }
     },

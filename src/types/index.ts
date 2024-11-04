@@ -7,14 +7,14 @@ export interface MenuItem {
   available: boolean;
 }
 
-export interface Order {
-  id: string;
-  tableNumber: number;
-  items: OrderItem[];
-  status: 'pending' | 'preparing' | 'ready' | 'served' | 'paid';
-  totalAmount: number;
-  createdAt: Date;
-}
+// export interface Order {
+//   id: string;
+//   tableNumber: number;
+//   items: OrderItem[];
+//   status: 'pending' | 'preparing' | 'ready' | 'served' | 'paid';
+//   totalAmount: number;
+//   createdAt: Date;
+// }
 
 export interface OrderItem {
   menuItem: MenuItem;
@@ -61,3 +61,22 @@ export interface Branch {
   code: string;
   status: 'ACTIVE' | 'INACTIVE' | 'TEMPORARILY_CLOSED';
 }
+
+// export interface Order {
+//   id: string;
+//   status: 'IN_PROGRESS' | 'COMPLETED' | 'SERVED' | 'CANCELLED';  // Match your DB enum
+//   created_at: string;
+//   completed_at: string | null;
+//   served_at: string | null;
+//   total_amount: number;
+//   tax_amount: number;
+//   waiter_id: string | null;
+//   table: {
+//     table_number: string;
+//   };
+//   order_items: OrderItem[];
+//   waiter?: {  // Make optional since waiter might be null
+//     first_name: string;
+//     last_name: string;
+//   };
+// }

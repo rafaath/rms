@@ -15,6 +15,7 @@ import { useAuthStore } from "@/stores/auth"
 import RoleManagement from "../roles/RoleManagement"
 import SessionPayment from "../pos/SessionPayment"
 import InventoryManagement from "@/components/inventory/InventoryManagement"
+import OrderHistory from "./OrderHistory"
 
 export default function Dashboard() {
     const { setTheme } = useTheme()
@@ -27,6 +28,7 @@ export default function Dashboard() {
         branches: BranchManagement,
         roles: RoleManagement,
         inventory: InventoryManagement,
+        orderHistory: OrderHistory,
         activeOrders: ActiveOrders,
         tableOrders: TableOrders,
         payments: SessionPayment,  // Add this line
