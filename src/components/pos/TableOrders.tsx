@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { POSBranchSelector } from './BranchSelector'
+import { Input } from '../ui/input';
 interface MenuItem {
     id: string;
     name_of_item: string;
@@ -26,7 +27,7 @@ interface OrderItem {
     specialInstructions?: string;
 }
 
-const POS = () => {
+const TableOrders = () => {
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
     const [categories, setCategories] = useState<string[]>([]);
     const [selectedTable, setSelectedTable] = useState<string | null>(null);
@@ -35,7 +36,58 @@ const POS = () => {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
-    const { selectedBranch } = useAuthStore();
+    const [staffId, setStaffId] = useState<string | null>(null);
+    const { selectedBranch, user } = useAuthStore();
+    const [sessionNotes, setSessionNotes] = useState('');
+
+    useEffect(() => {
+        const getStaffId = async () => {
+            if (!user?.id) return;
+
+            try {
+                const { data: mapping } = await supabase
+                    .from('auth_staff_mapping')
+                    .select('staff_id')
+                    .eq('auth_user_id', user.id)
+                    .single();
+
+                if (mapping) {
+                    setStaffId(mapping.staff_id);
+                }
+            } catch (error) {
+                console.error('Error fetching staff ID:', error);
+            }
+        };
+
+        getStaffId();
+    }, [user?.id]);
+    // Reset state when branch changes
+    useEffect(() => {
+        setSelectedTable(null);
+        setCurrentOrder([]);
+        setMenuItems([]);
+        setCategories([]);
+        setTables([]);
+        setIsPaymentModalOpen(false);
+
+        if (selectedBranch?.id) {
+            initializeData();
+        } else {
+            setLoading(false);
+        }
+    }, [selectedBranch?.id]);
+
+    const initializeData = async () => {
+        setLoading(true);
+        try {
+            await Promise.all([fetchMenuItems(), fetchTables()]);
+        } catch (error) {
+            console.error("Error initializing POS data:", error);
+            toast.error("Failed to initialize POS system");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         const initializeData = async () => {
@@ -85,26 +137,78 @@ const POS = () => {
         }
     };
 
-    const fetchTables = async () => {
-        if (!selectedBranch?.id) return;
+    const handleTableSelect = async (tableId: string) => {
+        setSelectedTable(tableId);
 
+        // Fetch existing session notes if table is occupied
         try {
-            console.log("Fetching tables...");
-            const { data, error } = await supabase
-                .from('restaurant_tables')
-                .select('*')
-                .eq('branch_id', selectedBranch.id)
-                .order('table_number');
+            const { data: existingSession, error } = await supabase
+                .from('dining_sessions')
+                .select('notes')
+                .eq('table_id', tableId)
+                .eq('status', 'IN_PROGRESS')
+                .maybeSingle(); // Use maybeSingle instead of single to handle no results gracefully
 
-            if (error) throw error;
+            if (error && error.code !== 'PGRST116') { // PGRST116 means no rows returned
+                console.error('Error fetching session notes:', error);
+                return;
+            }
 
-            console.log("Tables fetched:", data?.length);
-            setTables(data || []);
+            // Set notes from existing session if available, otherwise clear notes
+            setSessionNotes(existingSession?.notes || '');
+
         } catch (error) {
-            console.error('Error fetching tables:', error);
-            toast.error('Failed to fetch tables');
+            console.error('Error checking session:', error);
         }
     };
+
+    const fetchTables = async () => {
+        if (!selectedBranch?.id) {
+            console.log("No branch selected");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            console.log("Fetching tables for branch:", selectedBranch.id);
+
+            // First, get all tables for the branch
+            const { data: tablesData, error: tablesError } = await supabase
+                .from('restaurant_tables')
+                .select(`
+                    id,
+                    table_number,
+                    status,
+                    capacity,
+                    dining_sessions!left(
+                        id,
+                        status
+                    )
+                `)
+                .eq('branch_id', selectedBranch.id)
+                .eq('dining_sessions.status', 'IN_PROGRESS')
+                .order('table_number');
+
+            if (tablesError) {
+                console.error("Tables fetch error:", tablesError);
+                throw tablesError;
+            }
+
+            console.log("Fetched tables:", tablesData);
+            setTables(tablesData || []);
+        } catch (error: any) {
+            console.error('Error fetching tables:', error.message || error);
+            toast.error('Failed to fetch tables');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (selectedBranch?.id) {
+            fetchTables();
+        }
+    }, [selectedBranch?.id]);
 
     const addToOrder = (menuItem: MenuItem) => {
         setCurrentOrder(prev => {
@@ -121,15 +225,18 @@ const POS = () => {
     };
 
     const updateQuantity = (itemId: string, delta: number) => {
-        setCurrentOrder(prev =>
-            prev.map(item => {
+        setCurrentOrder(prev => {
+            const updatedOrder = prev.map(item => {
                 if (item.id === itemId) {
                     const newQuantity = item.quantity + delta;
-                    return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
+                    return { ...item, quantity: newQuantity };
                 }
                 return item;
-            }).filter(item => item.quantity > 0)
-        );
+            });
+
+            // Filter out items with quantity 0 or less
+            return updatedOrder.filter(item => item.quantity > 0);
+        });
     };
 
     const calculateTotal = () => {
@@ -139,59 +246,124 @@ const POS = () => {
         );
     };
 
-    const handlePayment = async () => {
-        if (!selectedTable || currentOrder.length === 0) {
+    // In your TableOrders.tsx
+
+    const handleOrder = async () => {
+        if (!selectedBranch?.id || !selectedTable || currentOrder.length === 0) {
             toast.error('Please select a table and add items to the order');
+            return;
+        }
+
+        if (!staffId) {
+            toast.error('Staff information not found');
             return;
         }
 
         setLoading(true);
         try {
-            // Create dining session
-            const sessionId = crypto.randomUUID();
-            const { error: sessionError } = await supabase
+            const { data: existingSession, error: sessionQueryError } = await supabase
                 .from('dining_sessions')
-                .insert([
-                    {
-                        id: sessionId,
-                        session_id: sessionId, // Using the same ID for both fields
-                        branch_id: selectedBranch?.id,
-                        table_id: selectedTable,
-                        number_of_guests: 1,
-                        status: 'IN_PROGRESS',
-                        total_amount: calculateTotal(),
-                        tax_amount: calculateTotal() * 0.1, // 10% tax example
-                    }
-                ]);
+                .select('id, total_amount, tax_amount')
+                .eq('table_id', selectedTable)
+                .eq('status', 'IN_PROGRESS')
+                .maybeSingle();
 
-            if (sessionError) throw sessionError;
+            if (sessionQueryError) {
+                console.error('Session query error:', sessionQueryError);
+                throw sessionQueryError;
+            }
 
-            // Create order
-            const orderId = crypto.randomUUID();
-            const { error: orderError } = await supabase
+            let sessionId = existingSession?.id;
+            const orderTotal = calculateTotal();
+            const orderTax = orderTotal * 0.1;
+
+            // Only changing the session creation part in handleOrder
+            if (!existingSession) {
+                // Generate a single UUID for both id and session_id
+                const newSessionId = crypto.randomUUID();
+
+                const { data: newSession, error: createSessionError } = await supabase
+                    .from('dining_sessions')
+                    .insert([
+                        {
+                            id: newSessionId,
+                            session_id: newSessionId,
+                            branch_id: selectedBranch.id,  // Add branch_id
+                            table_id: selectedTable,
+                            changed_by: staffId,
+                            changed_at: new Date().toISOString(),
+                            status: 'IN_PROGRESS',
+                            number_of_guests: 1,
+                            total_amount: orderTotal,
+                            tax_amount: orderTax,
+                            is_bill_printed: false,
+                            notes: sessionNotes || null
+                        }
+                    ])
+                    .select()
+                    .single();
+
+                if (createSessionError) {
+                    console.error('Create session error:', createSessionError);
+                    throw createSessionError;
+                }
+
+                sessionId = newSession.id;
+
+                const { error: tableError } = await supabase
+                    .from('restaurant_tables')
+                    .update({
+                        status: 'OCCUPIED',
+                        last_status_update: new Date().toISOString()
+                    })
+                    .eq('id', selectedTable);
+
+                if (tableError) throw tableError;
+            } else {
+                const newTotal = (existingSession.total_amount || 0) + orderTotal;
+                const newTax = (existingSession.tax_amount || 0) + orderTax;
+
+                const { error: updateSessionError } = await supabase
+                    .from('dining_sessions')
+                    .update({
+                        total_amount: newTotal,
+                        tax_amount: newTax,
+                        changed_by: staffId,
+                        changed_at: new Date().toISOString(),
+                        notes: sessionNotes // Update notes if changed
+                    })
+                    .eq('id', existingSession.id);
+
+                if (updateSessionError) throw updateSessionError;
+                sessionId = existingSession.id;
+            }
+
+            // Rest of your code remains the same...
+            const { data: newOrder, error: orderError } = await supabase
                 .from('orders')
                 .insert([
                     {
-                        id: orderId,
-                        branch_id: selectedBranch?.id,
+                        id: crypto.randomUUID(),
+                        branch_id: selectedBranch.id,
                         dining_session_id: sessionId,
                         table_id: selectedTable,
-                        total_amount: calculateTotal(),
-                        tax_amount: calculateTotal() * 0.1,
+                        total_amount: orderTotal,
+                        tax_amount: orderTax,
                         status: 'IN_PROGRESS',
-                        order_number: 1, // You might want to generate this sequentially
+                        order_number: 1
                     }
-                ]);
+                ])
+                .select()
+                .single();
 
             if (orderError) throw orderError;
 
-            // Create order items
             const orderItems = currentOrder.map(item => ({
                 id: crypto.randomUUID(),
-                order_id: orderId,
+                order_id: newOrder.id,
                 item_id: item.menuItem.id,
                 quantity: item.quantity,
-                item_special_requests: item.specialInstructions || '',
+                item_special_requests: item.specialInstructions || ''
             }));
 
             const { error: itemsError } = await supabase
@@ -200,29 +372,18 @@ const POS = () => {
 
             if (itemsError) throw itemsError;
 
-            // Update table status
-            const { error: tableError } = await supabase
-                .from('restaurant_tables')
-                .update({ status: 'OCCUPIED' })
-                .eq('id', selectedTable);
-
-            if (tableError) throw tableError;
-
             toast.success('Order placed successfully');
             setCurrentOrder([]);
-            setSelectedTable(null);
             setIsPaymentModalOpen(false);
-
-            // Refresh tables after successful order
             await fetchTables();
-        } catch (error) {
-            console.error('Error processing order:', error);
-            toast.error('Failed to process order');
+        } catch (error: any) {
+            console.error('Error processing order:', error.message || error);
+            toast.error(error.message || 'Failed to place order');
         } finally {
             setLoading(false);
         }
     };
-
+    // Loading state
     if (loading) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -231,21 +392,28 @@ const POS = () => {
         );
     }
 
+    // Branch selection state
     if (!selectedBranch) {
         return (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex flex-col items-center justify-center h-full gap-4">
+                <h2 className="text-2xl font-bold">Select a Branch</h2>
+                <p className="text-muted-foreground mb-4">Please select a branch to continue</p>
                 <POSBranchSelector />
             </div>
         );
     }
 
+    // No menu items state
     if (categories.length === 0) {
         return (
-            <div className="flex items-center justify-center h-full">
-                <div className="text-lg">No menu items available. Please add items to the menu first.</div>
+            <div className="flex flex-col items-center justify-center h-full gap-4">
+                <h2 className="text-2xl font-bold">No Menu Items</h2>
+                <p className="text-muted-foreground">No menu items available for {selectedBranch.name}.</p>
+                <p className="text-muted-foreground">Please add items to the menu first.</p>
             </div>
         );
     }
+
 
 
 
@@ -298,9 +466,8 @@ const POS = () => {
                             <Button
                                 key={table.id}
                                 variant={selectedTable === table.id ? "default" : "outline"}
-                                onClick={() => setSelectedTable(table.id)}
-                                disabled={table.status === 'OCCUPIED'}
-                                className="h-12"
+                                onClick={() => handleTableSelect(table.id)}
+                                className={`h-12 ${table.status === 'OCCUPIED' ? 'border-green-500' : ''}`}
                             >
                                 {table.table_number}
                             </Button>
@@ -323,6 +490,7 @@ const POS = () => {
                                         size="icon"
                                         variant="outline"
                                         onClick={() => updateQuantity(item.id, -1)}
+                                    // No need for disabled state since we'll remove the item
                                     >
                                         <Minus className="h-4 w-4" />
                                     </Button>
@@ -351,8 +519,7 @@ const POS = () => {
                         onClick={() => setIsPaymentModalOpen(true)}
                         disabled={currentOrder.length === 0 || !selectedTable}
                     >
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Process Payment
+                        Place Order
                     </Button>
                 </div>
             </div>
@@ -360,7 +527,7 @@ const POS = () => {
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Process Payment</DialogTitle>
+                        <DialogTitle>Confirm Order</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="flex justify-between text-lg font-bold">
@@ -375,14 +542,22 @@ const POS = () => {
                             <span>Final Total:</span>
                             <span>${(calculateTotal() * 1.1).toFixed(2)}</span>
                         </div>
-                        {/* Add payment method selection and other payment details here */}
+                        <div className="space-y-2">
+                            <Label htmlFor="notes">Session Notes (Optional)</Label>
+                            <Input
+                                id="notes"
+                                placeholder="Add any notes for this session..."
+                                value={sessionNotes}
+                                onChange={(e) => setSessionNotes(e.target.value)}
+                            />
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handlePayment} disabled={loading}>
-                            {loading ? 'Processing...' : 'Confirm Payment'}
+                        <Button onClick={handleOrder} disabled={loading}>
+                            {loading ? 'Processing...' : 'Confirm Order'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -391,4 +566,4 @@ const POS = () => {
     );
 };
 
-export default POS;
+export default TableOrders;

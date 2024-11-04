@@ -1,3 +1,4 @@
+// components/dashboard/Dashboard.tsx
 'use client'
 
 import { useTheme } from "next-themes"
@@ -8,8 +9,10 @@ import TableManagement from './TableManagement'
 import OrderManagement from './OrderManagement'
 import MenuManagement from './MenuManagement'
 import BranchManagement from "../branches/BranchManagement"
+import TableOrders from "../pos/TableOrders"  // Add this import
 import { useAuthStore } from "@/stores/auth"
 import RoleManagement from "../roles/RoleManagement"
+import SessionPayment from "../pos/SessionPayment"
 import InventoryManagement from "@/components/inventory/InventoryManagement"
 
 export default function Dashboard() {
@@ -22,7 +25,9 @@ export default function Dashboard() {
         menu: MenuManagement,
         branches: BranchManagement,
         roles: RoleManagement,
-        inventory: InventoryManagement // Add the new component
+        inventory: InventoryManagement,
+        tableOrders: TableOrders,
+        payments: SessionPayment,  // Add this line
     }
 
     const ActiveComponent = components[activeSection as keyof typeof components]

@@ -7,7 +7,8 @@ import {
     UtensilsCrossed,
     BarChart3,
     Package,
-    // Add new icons here
+    CreditCard,
+    ClipboardSignature,  // Add this import
 } from "lucide-react"
 
 export const SYSTEM_MODULES = {
@@ -87,7 +88,7 @@ export const SYSTEM_MODULES = {
             isCore: true // Flag for core features that are always shown
         }
     },
-    orders: {
+    orderss: {
         id: 'orders',
         label: 'Order Management',
         icon: ClipboardList,
@@ -146,6 +147,36 @@ export const SYSTEM_MODULES = {
         navItem: {
             title: "Inventory",
             value: "inventory",
+            isCore: true
+        }
+    },
+    tableOrders: {
+        id: 'tableOrders',
+        label: 'Take Orders',
+        icon: ClipboardSignature,
+        permissions: {
+            view: 'View Table Orders',
+            create: 'Create Table Orders',
+            edit: 'Edit Table Orders',
+            void: 'Void Table Orders'
+        },
+        navItem: {
+            title: "Take Orders",
+            value: "tableOrders",
+            isCore: true
+        }
+    },
+    payments: {
+        id: 'payments',
+        label: 'Payments',
+        icon: CreditCard,
+        permissions: {
+            view: 'View Payments',
+            process: 'Process Payments',
+        },
+        navItem: {
+            title: "Payments",
+            value: "payments",
             isCore: true
         }
     }
