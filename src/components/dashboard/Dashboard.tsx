@@ -10,6 +10,7 @@ import OrderManagement from './OrderManagement'
 import MenuManagement from './MenuManagement'
 import BranchManagement from "../branches/BranchManagement"
 import TableOrders from "../pos/TableOrders"  // Add this import
+import ActiveOrders from './ActiveOrders'
 import { useAuthStore } from "@/stores/auth"
 import RoleManagement from "../roles/RoleManagement"
 import SessionPayment from "../pos/SessionPayment"
@@ -26,6 +27,7 @@ export default function Dashboard() {
         branches: BranchManagement,
         roles: RoleManagement,
         inventory: InventoryManagement,
+        activeOrders: ActiveOrders,
         tableOrders: TableOrders,
         payments: SessionPayment,  // Add this line
     }

@@ -150,6 +150,20 @@ export const SYSTEM_MODULES = {
             isCore: true
         }
     },
+    activeOrders: {
+        id: 'activeOrders',
+        label: 'Active Orders',
+        icon: UtensilsCrossed,
+        permissions: {
+            view: 'View Active Orders',
+            update: 'Update Order Status',
+        },
+        navItem: {
+            title: "Active Orders",
+            value: "activeOrders",
+            isCore: true
+        }
+    },
     tableOrders: {
         id: 'tableOrders',
         label: 'Take Orders',
