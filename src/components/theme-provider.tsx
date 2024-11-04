@@ -1,0 +1,22 @@
+"use client"
+
+import * as React from "react"
+import { ThemeProvider as NextThemesProvider } from "next-themes"
+import { type ThemeProviderProps } from "next-themes/dist/types"
+
+export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Delay rendering any theme-dependent components until client-side
+  return (
+    <NextThemesProvider {...props}>
+      <div suppressHydrationWarning>
+        {mounted ? children : null}
+      </div>
+    </NextThemesProvider>
+  )
+}
