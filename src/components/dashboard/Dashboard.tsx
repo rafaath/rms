@@ -17,6 +17,7 @@ import SessionPayment from "../pos/SessionPayment"
 import InventoryManagement from "@/components/inventory/InventoryManagement"
 import OrderHistory from "./OrderHistory"
 import ReportsAnalytics from "./ReportsAnalytics"
+import StaffManagement from "../staff/StaffManagement"
 
 export default function Dashboard() {
     const { setTheme } = useTheme()
@@ -28,6 +29,7 @@ export default function Dashboard() {
         menu: MenuManagement,
         branches: BranchManagement,
         roles: RoleManagement,
+        staff: StaffManagement,
         analytics: ReportsAnalytics,
         inventory: InventoryManagement,
         orderHistory: OrderHistory,
